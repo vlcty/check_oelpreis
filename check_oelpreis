@@ -1,0 +1,48 @@
+#!/usr/bin/perl
+use strict;
+use LWP::UserAgent;
+
+sub exitCritical {
+    print("CRITICAL - %s\n", shift);
+    exit(2);
+}
+
+sub fetchPage {
+    my $userAgent = LWP::UserAgent->new();
+    my $result = $userAgent->get('http://www.finanzen.net/rohstoffe/oelpreis/euro');
+
+    if ( $result->is_success() ) {
+        return $result->decoded_content();
+    }
+    else {
+        exitCritical('Was not able to fetch page');
+    }
+}
+
+sub extractPriceForBrent {
+    my $page = fetchPage();
+
+    foreach my $currentLine ( split(/\n/, $page) ) {
+        if ( $currentLine =~ m/Brent\:<\/div><div class=\"col-xs-4 col-sm-4 text-right\">(\d+,\d+)<span>EUR/ig ) {
+            return $1;
+        }
+    }
+
+    exitCritical('Was not able to extract Brent price');
+}
+
+sub exchangeCommaWithPoint {
+    my $string = shift;
+    $string =~ s/,/\./;
+    return $string;
+}
+
+sub main {
+    my $pricePerBarrel = extractPriceForBrent();
+
+    printf("OK - %s € pro Barrel Brent|brent_barrelprice=%s\n",
+        $pricePerBarrel, exchangeCommaWithPoint($pricePerBarrel));
+    exit(0);
+}
+
+main();
